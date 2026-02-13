@@ -1,23 +1,22 @@
 FROM python:3.12-slim
 
-WORKDIR /app
-
-# Sistem bağımlılıklarını yükle (pdf işleme için gerekli olabilir)
+# 2. Gerekli sistem araçlarını kur (psycopg2 ve diğerleri için şart)
 RUN apt-get update && apt-get install -y \
-    gcc \
+    build-essential \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# requirements.txt'yi kopyala ve yükle
+WORKDIR /app
+
+# 3. Kütüphaneleri yükle
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Tüm proje dosyalarını kopyala
+# 4. Tüm dosyaları kopyala
 COPY . .
 
-# FAISS indeksi zaten var, ekstra işlem yok
-
-# Render'ın beklediği port
+# 5. Render'ın beklediği portu aç
 EXPOSE 10000
 
-# FastAPI uygulamasını başlat
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
+
+CMD ["sh", "-c", "python ingest.py && uvicorn main:app --host 0.0.0.0 --port 10000"]
