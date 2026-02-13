@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fissler AI Asistanı</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Buton yükleniyor animasyonu için */
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-50 flex items-center justify-center h-screen px-4">
+
+    <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100">
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">Fissler Asistan 🍳</h1>
+            <p class="text-gray-500 mt-2">Size özel destek için lütfen giriş yapın.</p>
+        </div>
+
+        <form id="loginForm" class="space-y-5">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Adınız Soyadınız</label>
+                <input type="text" id="full_name" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition" placeholder="Örn: Bilal Eroğlu" required>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">E-Posta Adresiniz</label>
+                <input type="email" id="email" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition" placeholder="ornek@mail.com" required>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Ürün Modeliniz</label>
+                <div class="relative">
+                    <select id="product_model" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none appearance-none bg-white transition">
+                        <option value="Vitaquick Green">Vitaquick Green (Yeşil)</option>
+                        <option value="Vitaquick Blue">Vitaquick Blue (Mavi)</option>
+                        <option value="Vitavit Premium">Vitavit Premium</option>
+                        <option value="Vitavit Comfort">Vitavit Comfort</option>
+                        <option value="Adamant Comfort">Adamant Comfort</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                        <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" id="submitBtn" class="w-full bg-red-600 text-white font-bold p-3 rounded-lg hover:bg-red-700 active:scale-95 transition duration-200 shadow-md flex justify-center items-center">
+                <span>Asistanı Başlat 🚀</span>
+            </button>
+        </form>
+
+        <p id="status" class="text-center text-sm mt-4 min-h-[20px]"></p>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); // Sayfanın yenilenmesini engelle
+
+            // Elementleri seç
+            const btn = document.getElementById('submitBtn');
+            const btnText = btn.querySelector('span');
+            const statusText = document.getElementById('status');
+
+            // Kullanıcıdan verileri al
+            const full_name = document.getElementById('full_name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const product_model = document.getElementById('product_model').value;
+
+            // Veri Kontrolü
+            if(!full_name || !email) {
+                statusText.innerText = "⚠️ Lütfen tüm alanları doldurun.";
+                statusText.className = "text-center text-sm text-red-600 mt-4";
+                return;
+            }
+
+            // Butonu 'Yükleniyor' moduna al
+            const originalText = btnText.innerText;
+            btn.disabled = true;
+            btnText.innerText = "Giriş yapılıyor...";
+            btn.classList.add("opacity-75", "cursor-not-allowed");
+            statusText.innerText = "";
+
+            // Backend'e gidecek veri (main.py'daki UserData sınıfıyla AYNI olmalı)
+            const requestData = {
+                full_name: full_name,
+                email: email,
+                product_model: product_model
+            };
+
+            try {
+                console.log("Gönderilen Veri:", requestData); // Debug için
+
+                // API İsteği Gönder
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+
+                const result = await response.json();
+                console.log("API Yanıtı:", result); // Debug için
+
+                if (response.ok && result.status === 'success') {
+                    statusText.innerText = "✅ Giriş başarılı! Yönlendiriliyorsunuz...";
+                    statusText.className = "text-center text-sm text-green-600 mt-4";
+
+                    // === KRİTİK YÖNLENDİRME KODU ===
+                    // 1 saniye bekleyip yönlendir (Kullanıcı mesajı görsün)
+                    setTimeout(() => {
+                        window.location.href = `/chat?user_id=${result.user_id}`;
+                    }, 500);
+
+                } else {
+                    throw new Error(result.detail || "Bilinmeyen bir hata oluştu.");
+                }
+
+            } catch (error) {
+                console.error("Hata:", error);
+                statusText.innerText = "❌ Hata: " + error.message;
+                statusText.className = "text-center text-sm text-red-600 mt-4";
+
+                // Butonu eski haline getir
+                btn.disabled = false;
+                btnText.innerText = originalText;
+                btn.classList.remove("opacity-75", "cursor-not-allowed");
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+# Sanal ortamlar
+venv/
+.venv/
+test_venv/
+env/
+ENV/
+
+# Ortam değişkenleri
+.env
+
+# Python derleme dosyaları
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE klasörleri (PyCharm, VS Code vb.)
+.idea/
+.vscode/
+
+# İşletim sistemi dosyaları
+.DS_Store
+Thumbs.db
+
+# Projeye özel (varsa)
+chroma/
+*.sqlite3
