@@ -2,8 +2,8 @@ import os
 import glob
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
+from embeddings import get_embeddings
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -85,8 +85,7 @@ def create_vector_db():
         print(f"   Source File: {texts[0].metadata.get('source_file')}")
         print(f"   İçerik Önizleme: {texts[0].page_content[:100]}...\n")
 
-    embeddings = OpenAIEmbeddings()
-    db = FAISS.from_documents(texts, embeddings)
+    db = FAISS.from_documents(texts, get_embeddings())
     db.save_local(DB_FAISS_PATH)
 
     print(f"🎉 FAISS veritabanı başarıyla güncellendi! Ayrım yapıldı (Vitaquick/Vitavit/Adamant).")

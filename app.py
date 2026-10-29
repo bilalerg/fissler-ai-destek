@@ -3,10 +3,11 @@ import chainlit as cl
 import psycopg2
 from typing import Annotated, TypedDict, Literal
 from datetime import datetime, timedelta
+from functools import lru_cache
 from urllib.parse import urlparse, parse_qs
 
 # LangChain & LangGraph
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_anthropic import ChatAnthropic
 from langchain_community.vectorstores import FAISS
 from langchain_core.messages import HumanMessage, SystemMessage, BaseMessage
 from langchain_core.tools import tool
@@ -14,13 +15,20 @@ from langgraph.graph import StateGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.graph.message import add_messages
 from dotenv import load_dotenv
+from embeddings import get_embeddings
 
 load_dotenv()
 
 # ================== AYARLAR ==================
 DB_KLASORU = "faiss_index"
-MODEL_ADI = "gpt-4o-mini"
+MODEL_ADI = os.getenv("CLAUDE_MODEL", "claude-haiku-5-5")
 DATABASE_URL = os.getenv("SUPABASE_URL")
+
+
+@lru_cache(maxsize=1)
+def get_vectorstore():
+    """FAISS indeksini ve embedding modelini bir kez yükler, sonraki aramalarda yeniden kullanır."""
+    return FAISS.load_local(DB_KLASORU, get_embeddings(), allow_dangerous_deserialization=True)
 
 
 # ================== VERİTABANI İŞLEMLERİ ==================
@@ -76,8 +84,7 @@ def search_technical_manual(query: str) -> str:
 
         print(f"\n🔍 ARAMA BAŞLADI | Aile: {user_family} | Güçlendirilmiş Sorgu: '{enhanced_query}'")
 
-        embeddings = OpenAIEmbeddings()
-        vectorstore = FAISS.load_local(DB_KLASORU, embeddings, allow_dangerous_deserialization=True)
+        vectorstore = get_vectorstore()
 
         results = []
 
@@ -179,7 +186,8 @@ class AgentState(TypedDict):
 
 
 def agent_node(state: AgentState):
-    llm = ChatOpenAI(model=MODEL_ADI, temperature=0, streaming=True).bind_tools(tools)
+    # Yeni Claude modellerinde temperature gönderilemez (400); düşünme adımı açıktır.
+    llm = ChatAnthropic(model=MODEL_ADI, max_tokens=16000).bind_tools(tools)
 
     state_meta = cl.user_session.get("state_metadata", {})
     user_family = state_meta.get("product_family", "genel").upper()
@@ -247,6 +255,10 @@ Müşteri Ürünü: {state.get('user_model', 'Bilinmiyor')}
    - Doluluk: Bakliyat 1/3, Pirinç 1/2, Normal 2/3
    - Su ile soğutma: Sadece YANDAN
    - Sterilizasyon: KULLANILAMAZ
+
+5. **BİLMİYORSAN SÖYLE:**
+   Cevap arama sonuçlarında yoksa tahmin etme, başka marka/üründen bilgi uydurma.
+   "Bu bilgi elimdeki Fissler belgelerinde yok, Müşteri Hizmetleri'ne (444 75 58) danışmanızı öneririm." de.
 """
     )
 
@@ -338,7 +350,8 @@ async def main(message: cl.Message):
     try:
         res = await app_graph.ainvoke(merged_input)
         bot_response_message = res["messages"][-1]
-        msg.content = bot_response_message.content
+        # Claude cevabı düşünme + metin bloklarından oluşur; ekrana yalnızca metni yaz
+        msg.content = bot_response_message.text
         await msg.update()
         cl.user_session.set("graph_state", res)
 
